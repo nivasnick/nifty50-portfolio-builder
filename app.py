@@ -132,7 +132,7 @@ if selected_stocks:
     st.markdown("### 🥧 Allocation Pie Chart")
 
     fig, ax = plt.subplots()
-        ax.pie(
+    ax.pie(
         edited_df["Investment (₹)"],
         labels=edited_df["Stock"],
         autopct="%1.1f%%",
