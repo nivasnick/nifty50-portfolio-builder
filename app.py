@@ -128,19 +128,7 @@ if selected_stocks:
     remaining_amount = round(investment_amount - total_allocated, 2)
     st.info(f"💡 Remaining Unallocated Amount: ₹{remaining_amount}")
 
-    # Pie Chart for Allocation %
-    st.markdown("### 🥧 Allocation Pie Chart")
-    valid_df = edited_df[edited_df["Investment (₹)"] > 0].dropna(subset=["Investment (₹)"])
-
-    fig, ax = plt.subplots()
-    ax.pie(
-        valid_df["Investment (₹)"],
-        labels=valid_df["Stock"],
-        autopct="%1.1f%%",
-        startangle=90
-    )
-    ax.axis("equal")
-    st.pyplot(fig)
+   
 
 
     # 📥 CSV Download
