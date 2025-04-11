@@ -1,87 +1,13 @@
 import streamlit as st
 import requests
 import pandas as pd
-
-import matplotlib.pyplot as plt
-from collections import defaultdict
-
 import yfinance as yf
-import matplotlib.pyplot as plt
-
 
 # Constants
 API_KEY = "your_api_key_here"  # Replace with your actual API Key from financialmodelingprep.com
 SEARCH_API = "https://financialmodelingprep.com/api/v3/search"
-PROFILE_API = "https://financialmodelingprep.com/api/v3/profile"
 
-st.set_page_config(page_title="NIFTY50 Portfolio Builder", layout="wide")
-st.title("📊 NIFTY50 Portfolio Builder with Industry Allocation")
-
-# Initialize session state
-if "selected_stocks" not in st.session_state:
-
-    st.session_state.selected_stocks = []
-
-if "stock_industries" not in st.session_state:
-    st.session_state.stock_industries = {}
-
-# Search and select stock
-st.subheader("🔍 Search and Add Stocks to Portfolio")
-query = st.text_input("Type stock name or symbol (e.g. INFY, TCS)")
-
-if query:
-    response = requests.get(f"{SEARCH_API}?query={query}&limit=10&exchange=NS&apikey={API_KEY}")
-    if response.status_code == 200:
-        suggestions = response.json()
-        stock_options = [f"{item['symbol']} - {item['name']}" for item in suggestions if 'symbol' in item and 'name' in item]
-
-        if stock_options:
-            selected_stock = st.selectbox("Select a stock to add to portfolio:", stock_options)
-            if st.button("Add to Portfolio"):
-                symbol = selected_stock.split(" - ")[0]
-                if symbol not in st.session_state.selected_stocks:
-                    st.session_state.selected_stocks.append(symbol)
-
-                    # Fetch industry
-                    profile_resp = requests.get(f"{PROFILE_API}/{symbol}?apikey={API_KEY}")
-                    if profile_resp.status_code == 200:
-                        profile_data = profile_resp.json()
-                        if profile_data:
-                            industry = profile_data[0].get("industry", "Unknown")
-                            st.session_state.stock_industries[symbol] = industry
-                    st.success(f"✅ {symbol} added to portfolio!")
-                else:
-                    st.info(f"ℹ️ {symbol} is already in your portfolio.")
-        else:
-            st.warning("No matching stocks found.")
-    else:
-        st.error("Failed to fetch data. Check your API key or internet connection.")
-
-# Display selected stocks
-if st.session_state.selected_stocks:
-    st.subheader("📦 Selected Stocks")
-    for stock in st.session_state.selected_stocks:
-        industry = st.session_state.stock_industries.get(stock, "Unknown")
-        st.write(f"- **{stock}** ({industry})")
-
-    # Group by industry for pie chart
-    industry_alloc = defaultdict(int)
-    for symbol in st.session_state.selected_stocks:
-        industry = st.session_state.stock_industries.get(symbol, "Unknown")
-        industry_alloc[industry] += 1
-
-    # Plot Pie Chart
-    st.subheader("📈 Industry Allocation")
-    fig, ax = plt.subplots(figsize=(5, 5))
-    ax.pie(industry_alloc.values(), labels=industry_alloc.keys(), autopct='%1.1f%%', startangle=140, textprops={'fontsize': 10})
-    ax.axis('equal')
-    st.pyplot(fig)
-=======
-    st.session_state.selected_stocks = ["Reliance", "TCS", "Infosys"]
-
-# ----------------------------------------
 # NIFTY 50 stock tickers (Yahoo Finance format)
-# ----------------------------------------
 nifty_50_stocks = {
     "Reliance": "RELIANCE.NS", "TCS": "TCS.NS", "Infosys": "INFY.NS", "HDFC Bank": "HDFCBANK.NS",
     "ICICI Bank": "ICICIBANK.NS", "Kotak Bank": "KOTAKBANK.NS", "L&T": "LT.NS", "Axis Bank": "AXISBANK.NS",
@@ -99,46 +25,107 @@ nifty_50_stocks = {
     "Infratel": "INFRATEL.NS"
 }
 
-# ----------------------------------------
-# Streamlit App
-# ----------------------------------------
-st.set_page_config(page_title="NIFTY 50 Portfolio Builder", layout="wide")
-st.title("📈 NIFTY 50 Portfolio Builder")
+# Helper function to get current market price
+def get_cmp(ticker):
+    try:
+        stock = yf.Ticker(ticker)
+        return round(stock.history(period="1d")["Close"].iloc[-1], 2)
+    except:
+        return None
 
-investment_amount = st.number_input("💰 Enter total investment amount (INR)", min_value=1000, step=500)
+# Set page config
+st.set_page_config(page_title="NIFTY50 Portfolio Builder", layout="wide", initial_sidebar_state="expanded")
 
-# ----------------------
-# Add user input for custom stock ticker
-# ----------------------
-custom_ticker = st.text_input("🔎 Add a custom stock ticker (e.g., DMART.NS, IRCTC.NS):")
-if custom_ticker:
-    custom_name = custom_ticker.upper()
-    if custom_name not in nifty_50_stocks:
-        nifty_50_stocks[custom_name] = custom_name
-        if custom_name not in st.session_state.custom_tickers:
-            st.session_state.custom_tickers.append(custom_name)
+# Custom CSS for better styling
+st.markdown("""
+    <style>
+    .main {background-color: #f5f7fa;}
+    .stButton>button {background-color: #007bff; color: white; border-radius: 5px;}
+    .stButton>button:hover {background-color: #0056b3;}
+    .stTextInput>label {font-size: 1.1rem; font-weight: bold;}
+    .stNumberInput>label {font-size: 1.1rem; font-weight: bold;}
+    .stSelectbox>label {font-size: 1.1rem; font-weight: bold;}
+    .stMultiSelect>label {font-size: 1.1rem; font-weight: bold;}
+    .sidebar .sidebar-content {background-color: #ffffff;}
+    .stAlert {border-radius: 5px;}
+    </style>
+""", unsafe_allow_html=True)
 
-# ----------------------
-# Multi-select list for all stocks
-# ----------------------
-all_stock_options = list(nifty_50_stocks.keys())
-selected = st.multiselect(
-    "Choose stocks (NIFTY 50 + custom)",
-    options=all_stock_options,
-    default=st.session_state.selected_stocks
-)
-st.session_state.selected_stocks = selected
-selected_stocks = selected
+# Sidebar for portfolio controls
+with st.sidebar:
+    st.header("Portfolio Controls")
+    investment_amount = st.number_input("💰 Investment Amount (INR)", min_value=1000, step=500, value=10000)
+    if st.button("🗑️ Clear Portfolio"):
+        st.session_state.selected_stocks = []
+        st.session_state.custom_tickers = []
+        st.rerun()
 
-# ----------------------
-# Allocation logic with editable table
-# ----------------------
-if selected_stocks:
-    per_stock_invest = investment_amount / len(selected_stocks)
-    total_allocated = 0
+# Initialize session state
+if "selected_stocks" not in st.session_state:
+    st.session_state.selected_stocks = []
+if "custom_tickers" not in st.session_state:
+    st.session_state.custom_tickers = []
+
+# Main title
+st.title("📊 NIFTY50 Portfolio Builder")
+st.markdown("Build your portfolio with NIFTY50 stocks and customize your investments.")
+
+# Two-column layout
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    # Stock selection section
+    st.subheader("🔍 Add Stocks to Portfolio")
+    query = st.text_input("Search stock name or symbol (e.g., INFY, TCS)", placeholder="Type to search...")
+    
+    if query:
+        with st.spinner("Searching stocks..."):
+            response = requests.get(f"{SEARCH_API}?query={query}&limit=10&exchange=NS&apikey={API_KEY}")
+            if response.status_code == 200:
+                suggestions = response.json()
+                stock_options = [f"{item['symbol']} - {item['name']}" for item in suggestions if 'symbol' in item and 'name' in item]
+                
+                if stock_options:
+                    selected_stock = st.selectbox("Select a stock:", stock_options, key="stock_select")
+                    if st.button("➕ Add Stock"):
+                        symbol = selected_stock.split(" - ")[0]
+                        if symbol not in st.session_state.selected_stocks:
+                            st.session_state.selected_stocks.append(symbol)
+                            st.success(f"✅ {symbol} added to portfolio!")
+                        else:
+                            st.info(f"ℹ️ {symbol} is already in your portfolio.")
+                else:
+                    st.warning("⚠️ No matching stocks found.")
+            else:
+                st.error("❌ Failed to fetch data. Check your API key or connection.")
+
+    # Custom ticker input
+    custom_ticker = st.text_input("🔎 Add Custom Ticker (e.g., DMART.NS)", placeholder="Enter ticker...")
+    if custom_ticker:
+        custom_name = custom_ticker.upper()
+        if custom_name not in nifty_50_stocks:
+            nifty_50_stocks[custom_name] = custom_name
+            if custom_name not in st.session_state.custom_tickers:
+                st.session_state.custom_tickers.append(custom_name)
+                st.success(f"✅ Custom ticker {custom_name} added!")
+
+with col2:
+    # Selected stocks display
+    if st.session_state.selected_stocks:
+        st.subheader("📋 Your Portfolio")
+        for stock in st.session_state.selected_stocks:
+            if st.button(f"🗑️ Remove {stock}", key=f"remove_{stock}"):
+                st.session_state.selected_stocks.remove(stock)
+                st.rerun()
+            st.markdown(f"**{stock}**")
+
+# Portfolio allocation and summary
+if st.session_state.selected_stocks:
+    st.subheader("📊 Portfolio Allocation")
+    per_stock_invest = investment_amount / len(st.session_state.selected_stocks)
     data = []
 
-    for stock in selected_stocks:
+    for stock in st.session_state.selected_stocks:
         ticker = nifty_50_stocks.get(stock, stock)
         cmp = get_cmp(ticker)
         if cmp:
@@ -155,36 +142,42 @@ if selected_stocks:
             })
 
     df = pd.DataFrame(data)
-
-    st.markdown("### ✏️ Edit Portfolio Table Below")
+    
+    # Editable table
+    st.markdown("### ✏️ Edit Your Portfolio")
     edited_df = st.data_editor(
         df,
         use_container_width=True,
-        disabled=["Stock", "Ticker"],
-        key="editable_table"
+        disabled=["Stock", "Ticker", "CMP (₹)", "Investment (₹)", "Allocation %"],
+        column_config={
+            "Quantity": st.column_config.NumberColumn(min_value=0, step=1)
+        },
+        key="portfolio_table"
     )
 
-    # Dynamically recalculate investment values
+    # Recalculate investment values
     edited_df["Investment (₹)"] = edited_df["CMP (₹)"] * edited_df["Quantity"]
     total_allocated = edited_df["Investment (₹)"].sum()
-    edited_df["Allocation %"] = round((edited_df["Investment (₹)"] / investment_amount) * 100, 2)
+    edited_df["Allocation %"] = round((edited_df["Investment (₹)"] / total_allocated) * 100, 2) if total_allocated > 0 else 0
 
-    st.markdown("### 📊 Portfolio Summary")
-    st.dataframe(edited_df, use_container_width=True)
+    # Display summary
+    st.markdown("### 📈 Portfolio Summary")
+    st.dataframe(edited_df.style.format({
+        "CMP (₹)": "₹{:.2f}",
+        "Investment (₹)": "₹{:.2f}",
+        "Allocation %": "{:.2f}%"
+    }), use_container_width=True)
 
-    st.success(f"✅ Total Investment Allocated: ₹{round(total_allocated, 2)} out of ₹{investment_amount}")
-    
-    # ➕ Show Remaining Unallocated Amount
-    remaining_amount = round(investment_amount - total_allocated, 2)
-    st.info(f"💡 Remaining Unallocated Amount: ₹{remaining_amount}")
+    # Allocation feedback
+    remaining_amount = investment_amount - total_allocated
+    st.success(f"✅ Total Allocated: ₹{round(total_allocated, 2)}")
+    if remaining_amount > 0:
+        st.info(f"💡 Unallocated Amount: ₹{round(remaining_amount, 2)}")
+    elif remaining_amount < 0:
+        st.warning(f"⚠️ Over-allocated by: ₹{-round(remaining_amount, 2)}")
 
-   
-
-
-    # 📥 CSV Download
+    # CSV download
     csv = edited_df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download Portfolio CSV", csv, "portfolio.csv", "text/csv")
-
-
+    st.download_button("📥 Download Portfolio as CSV", csv, "portfolio.csv", "text/csv")
 else:
-    st.info("Start building your portfolio by searching and adding stocks.")
+    st.info("👉 Start by searching and adding stocks to build your portfolio!")
