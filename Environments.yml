@@ -1,1 +1,6 @@
-
+yfinance
+pandas
+streamlit
+matplotlib
+requests
+defaultdict
