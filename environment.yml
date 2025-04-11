@@ -1,5 +1,11 @@
-yfinance
-pandas
-streamlit
-requests
-
+name: base
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - streamlit
+  - pandas
+  - yfinance
+  - matplotlib
+  - numpy
