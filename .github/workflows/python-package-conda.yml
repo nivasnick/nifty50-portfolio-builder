@@ -25,7 +25,7 @@ jobs:
 
     - name: ✅ Set up conda environment
       run: |
-        conda env update --file ${{ github.workspace }}/.cienvironment.yml --name base
+        conda env update --file ${{ github.workspace }}/.ci-environment.yml --name base
 
     - name: 🧼 Lint with flake8
       run: |
