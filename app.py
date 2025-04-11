@@ -130,17 +130,18 @@ if selected_stocks:
 
     # Pie Chart for Allocation %
     st.markdown("### 🥧 Allocation Pie Chart")
+    valid_df = edited_df[edited_df["Investment (₹)"] > 0].dropna(subset=["Investment (₹)"])
 
     fig, ax = plt.subplots()
     ax.pie(
-        edited_df["Investment (₹)"],
-        labels=edited_df["Stock"],
+        valid_df["Investment (₹)"],
+        labels=valid_df["Stock"],
         autopct="%1.1f%%",
         startangle=90
-        )
-    ax.axis("equal")  # Equal aspect ratio ensures that pie is drawn as a circle.
-
+    )
+    ax.axis("equal")
     st.pyplot(fig)
+
 
     # 📥 CSV Download
     csv = edited_df.to_csv(index=False).encode('utf-8')
