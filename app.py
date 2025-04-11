@@ -1,6 +1,7 @@
-import streamlit as st 
+import streamlit as st
 import pandas as pd
 import yfinance as yf
+import plotly.express as px
 
 # ----------------------------------------
 # Function to fetch CMP (no default fallback)
@@ -84,7 +85,6 @@ selected_stocks = selected
 # ----------------------
 if selected_stocks:
     per_stock_invest = investment_amount / len(selected_stocks)
-    total_allocated = 0
     data = []
 
     for stock in selected_stocks:
@@ -121,11 +121,24 @@ if selected_stocks:
     st.markdown("### 📊 Portfolio Summary")
     st.dataframe(edited_df, use_container_width=True)
 
-    st.success(f"✅ Total Investment Allocated: ₹{round(total_allocated, 2)} out of ₹{investment_amount}")
-    
-    # ➕ Show Remaining Unallocated Amount
+    # 💡 Remaining or Over-Allocated Amount
     remaining_amount = round(investment_amount - total_allocated, 2)
-    st.info(f"💡 Remaining Unallocated Amount: ₹{remaining_amount}")
+
+    if remaining_amount < 0:
+        st.error(f"⚠️ Over-Allocated by ₹{-remaining_amount}. Reduce quantity to match your budget.")
+    else:
+        st.success(f"✅ Total Investment Allocated: ₹{round(total_allocated, 2)} out of ₹{investment_amount}")
+        st.info(f"💡 Remaining Unallocated Amount: ₹{remaining_amount}")
+
+    # 📊 Pie Chart
+    fig = px.pie(
+        edited_df,
+        names="Stock",
+        values="Investment (₹)",
+        title="Portfolio Allocation by Stock",
+        hole=0.4
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
     # 📥 CSV Download
     csv = edited_df.to_csv(index=False).encode('utf-8')
@@ -133,4 +146,3 @@ if selected_stocks:
 
 else:
     st.warning("Please select at least one stock to build your portfolio.")
-
